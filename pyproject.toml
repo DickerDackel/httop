@@ -58,3 +58,7 @@ select = [
     "FIX",  # flake8-fixme
     "ERA",  # eradicate (commented out code)
 ]
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = false
+lines-between-types = 1
