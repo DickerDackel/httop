@@ -1,0 +1,60 @@
+[project]
+name = "httop"
+description = "httop"
+version = "0.0.1"
+readme = "README.md"
+
+authors = [
+    { name="Michael Lamertz", email="michael.lamertz@gmail.com" }
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Games/Entertainment",
+    "Topic :: Software Development :: Libraries :: pygame",
+]
+
+dependencies = [ ]
+
+[project.scripts]
+httop = "httop.httop:main"
+
+[project.urls]
+homepage = "https://github.com/dickerdackel/httop"
+bugtracker = "https://github.com/DickerDackel/httop/issues"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+addopts = "-rA -s --cov-report term-missing -s"
+testpaths = [
+    "tests",
+]
+
+[tool.ruff]
+ignore = [
+    "E501",
+    "E701",
+    "E731",
+    "E741",
+]
+line-length = 100
+select = [
+    # defaults
+    "B",
+    "C",
+    "E",
+    "F",
+    "I",
+    "W",
+    # Mine
+    "N",
+    "ANN",  # flake8-annotations
+    "PL",  # pylint
+    "FIX",  # flake8-fixme
+    "ERA",  # eradicate (commented out code)
+]
