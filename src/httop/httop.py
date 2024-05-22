@@ -1,35 +1,34 @@
 #!/bin/env python3
 
+# ruff: noqa: ANN001, ANN201
+
 import argparse
 import heapq
-import os
+import re
 import shutil
 import sys
-import threading
 import time
-import re
 
 from collections import defaultdict
-from queue import Queue, Empty
+from queue import Empty, Queue
 from select import select
+from threading import Event, Semaphore, Thread
 
 LOG_FORMATS = {
     'apache': r'^(\S+)',
     'vhosts': r'^\S+\s(\S+)',
 }
 
-
-def tail(fname, queue, shutdown):
+def tail(fname, q, shutdown):
     with open(fname) as f:
         f.seek(0, 2)
         while not shutdown.is_set():
-            sel = None
-            if not (sel := select([f], [], [], 0.01))[0]:
+            if not (select([f], [], [], 0.01))[0]:
                 continue
 
             line = f.readline()
             if line:
-                queue.put((fname, line.strip()))
+                q.put((fname, line.strip()))
 
 
 def log_fetcher(q):
@@ -54,7 +53,7 @@ def gc(db, window):
         del(db[ip])
 
 
-def display(db, window, nolines, delay, dblock, shutdown):
+def display(db, window, nolines, delay, dblock, shutdown):  # noqa: PLR0913
     while not shutdown.is_set():
         width = shutil.get_terminal_size(fallback=(80, 25))[0]
         # see format string below
@@ -63,7 +62,7 @@ def display(db, window, nolines, delay, dblock, shutdown):
         timestamp = time.strftime('%F %T', time.localtime())
 
         print(f'\033c{timestamp:>{width}}')
-        print(f'delay: {delay}s  entries: {nolines}  collect window: {window}s', end='\n\n') 
+        print(f'delay: {delay}s  entries: {nolines}  collect window: {window}s', end='\n\n')
         print(f'{"IP":>15}  {"Hits":>6}')
 
         heap = []
@@ -81,7 +80,7 @@ def display(db, window, nolines, delay, dblock, shutdown):
         dblock.release()
 
         # A long time.sleep would block the shutdown...
-        for i in range(delay):
+        for _ in range(delay):
             time.sleep(1)
             if shutdown.is_set():
                 break
@@ -91,9 +90,9 @@ def main():
     log_formats = list(LOG_FORMATS.keys())
 
     cmdline = argparse.ArgumentParser(description='top for httpd access logs')
-    cmdline.add_argument('--window', '-w', type=int, default=60, help='Time window over which to count the IPs')
     cmdline.add_argument('--delay', '-d', type=int, default=1, help='Update delay')
     cmdline.add_argument('--nolines', '-n', type=int, default=10, help='Maximum number of IPs to show')
+    cmdline.add_argument('--window', '-w', type=int, default=60, help='Time window over which to count the IPs')
     cmdline.add_argument('--logformat', '-l', choices=log_formats, default=log_formats[0], help='httpd log format')
     cmdline.add_argument('--logrx', '-r', type=str, help='Regular expression to extract the source IP from the log line')
     cmdline.add_argument('file', nargs='+', help='Log file')
@@ -103,20 +102,20 @@ def main():
         opts.logformat = 'custom'
         LOG_FORMATS[opts.logformat] = opts.logrx
 
-    shutdown = threading.Event()
+    shutdown = Event()
     q = Queue()
     db = defaultdict(list)
-    dblock = threading.Semaphore()
+    dblock = Semaphore()
 
-    threads = [threading.Thread(target=tail, args=(log, q, shutdown)) for log in opts.file]
-    threads.append(threading.Thread(target=display, args=(db, opts.window, opts.nolines, opts.delay, dblock, shutdown)))
+    threads = [Thread(target=tail, args=(log, q, shutdown)) for log in opts.file]
+    threads.append(Thread(target=display, args=(db, opts.window, opts.nolines, opts.delay, dblock, shutdown)))
 
     for t in threads:
         t.start()
 
     log_rx = re.compile(LOG_FORMATS[opts.logformat])
     try:
-        for log, line in log_fetcher(q):
+        for log, line in log_fetcher(q):  # noqa: B007
             now = time.time()
 
             match = log_rx.search(line)
