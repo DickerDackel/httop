@@ -7,10 +7,17 @@ import shutil
 import sys
 import threading
 import time
+import re
 
 from collections import defaultdict
 from queue import Queue, Empty
 from select import select
+
+LOG_FORMATS = {
+    'apache': r'^(\S+)',
+    'vhosts': r'^\S+\s(\S+)',
+}
+
 
 def tail(fname, queue, shutdown):
     with open(fname) as f:
@@ -81,12 +88,20 @@ def display(db, window, nolines, delay, dblock, shutdown):
 
 
 def main():
+    log_formats = list(LOG_FORMATS.keys())
+
     cmdline = argparse.ArgumentParser(description='top for httpd access logs')
     cmdline.add_argument('--window', '-w', type=int, default=60, help='Time window over which to count the IPs')
     cmdline.add_argument('--delay', '-d', type=int, default=1, help='Update delay')
     cmdline.add_argument('--nolines', '-n', type=int, default=10, help='Maximum number of IPs to show')
+    cmdline.add_argument('--logformat', '-l', choices=log_formats, default=log_formats[0], help='httpd log format')
+    cmdline.add_argument('--logrx', '-r', type=str, help='Regular expression to extract the source IP from the log line')
     cmdline.add_argument('file', nargs='+', help='Log file')
     opts = cmdline.parse_args(sys.argv[1:])
+
+    if opts.logrx:
+        opts.logformat = 'custom'
+        LOG_FORMATS[opts.logformat] = opts.logrx
 
     shutdown = threading.Event()
     q = Queue()
@@ -99,11 +114,13 @@ def main():
     for t in threads:
         t.start()
 
+    log_rx = re.compile(LOG_FORMATS[opts.logformat])
     try:
         for log, line in log_fetcher(q):
             now = time.time()
 
-            ip = line[:line.find(' ')]
+            match = log_rx.search(line)
+            ip = match.group(1) if match else 'PARSE ERROR'
 
             dblock.acquire()
             db[ip].append(now)
