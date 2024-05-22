@@ -39,7 +39,7 @@ def gc(db, window):
     now = time.time()
     killed = []
     for ip, agelist in db.items():
-        while agelist and now - agelist[0] < window:
+        while agelist and now - agelist[0] > window:
             agelist.pop(0)
         if not agelist:
             killed.append(ip)
