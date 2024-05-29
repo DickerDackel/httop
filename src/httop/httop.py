@@ -4,6 +4,7 @@
 
 import argparse
 import heapq
+import os
 import re
 import shutil
 import sys
@@ -20,19 +21,28 @@ LOG_FORMATS = {
 }
 
 def tail(fname, q, shutdown):
-    try:
-        with open(fname) as f:
-            f.seek(0, 2)
-            while not shutdown.is_set():
-                if not (select([f], [], [], 0.01))[0]:
-                    continue
+    def readloop():
+        while not shutdown.is_set():
+            # reopen if log was rotated
+            if os.stat(fname).st_ino != inode:
+                return
 
-                line = f.readline()
-                if line:
-                    q.put((fname, line.strip()))
-    except FileNotFoundError:
-        print(f'Filename {fname} not found', file=sys.stderr)
-        shutdown.set()
+            if not (select([f], [], [], 0.01))[0]:
+                continue
+
+            line = f.readline()
+            if line:
+                q.put((fname, line.strip()))
+
+    while not shutdown.is_set():
+        # Log could be rotated and not available for a moment, keep trying
+        try:
+            with open(fname) as f:
+                inode = os.stat(f.fileno()).st_ino
+                f.seek(0, 2)
+                readloop()
+        except FileNotFoundError:
+            time.sleep(0.01)
 
 
 def log_fetcher(q, shutdown):
@@ -120,7 +130,6 @@ def main():
     log_rx = re.compile(LOG_FORMATS[opts.logformat])
     try:
         for log, line in log_fetcher(q, shutdown):  # noqa: B007
-            print('tick')
             if shutdown.is_set():
                 break
 
