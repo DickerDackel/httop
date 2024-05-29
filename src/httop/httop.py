@@ -20,21 +20,25 @@ LOG_FORMATS = {
 }
 
 def tail(fname, q, shutdown):
-    with open(fname) as f:
-        f.seek(0, 2)
-        while not shutdown.is_set():
-            if not (select([f], [], [], 0.01))[0]:
-                continue
+    try:
+        with open(fname) as f:
+            f.seek(0, 2)
+            while not shutdown.is_set():
+                if not (select([f], [], [], 0.01))[0]:
+                    continue
 
-            line = f.readline()
-            if line:
-                q.put((fname, line.strip()))
+                line = f.readline()
+                if line:
+                    q.put((fname, line.strip()))
+    except FileNotFoundError:
+        print(f'Filename {fname} not found', file=sys.stderr)
+        shutdown.set()
 
 
-def log_fetcher(q):
-    while True:
+def log_fetcher(q, shutdown):
+    while not shutdown.is_set():
         try:
-            log, line = q.get()
+            log, line = q.get(False, 0.01)
         except Empty:
             continue
 
@@ -115,7 +119,11 @@ def main():
 
     log_rx = re.compile(LOG_FORMATS[opts.logformat])
     try:
-        for log, line in log_fetcher(q):  # noqa: B007
+        for log, line in log_fetcher(q, shutdown):  # noqa: B007
+            print('tick')
+            if shutdown.is_set():
+                break
+
             now = time.time()
 
             match = log_rx.search(line)
