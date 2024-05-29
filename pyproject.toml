@@ -41,24 +41,12 @@ ignore = [
     "E701",
     "E731",
     "E741",
+    # "ANN",
+    "PLR2004",
 ]
 line-length = 100
-select = [
-    # defaults
-    "B",
-    "C",
-    "E",
-    "F",
-    "I",
-    "W",
-    # Mine
-    "N",
-    "ANN",  # flake8-annotations
-    "PL",  # pylint
-    "FIX",  # flake8-fixme
-    "ERA",  # eradicate (commented out code)
-]
 
 [tool.ruff.lint.isort]
 force-sort-within-sections = false
+known-third-party = ["pygame", "numpy", "tinyecs", "patternegine", "pgcooldown", "rpeasings"]
 lines-between-types = 1
