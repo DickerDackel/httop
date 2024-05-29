@@ -126,14 +126,14 @@ def main():
     db = defaultdict(list)
     dblock = Semaphore()
 
-    threads = [Thread(target=tail, args=(log, q, shutdown)) for log in opts.file]
-    threads.append(Thread(target=display, args=(db, opts.window, opts.nolines, opts.delay, dblock, shutdown)))
-
-    for t in threads:
-        t.start()
-
-    log_rx = re.compile(LOG_FORMATS[opts.logformat])
     try:
+        threads = [Thread(target=tail, args=(log, q, shutdown)) for log in opts.file]
+        threads.append(Thread(target=display, args=(db, opts.window, opts.nolines, opts.delay, dblock, shutdown)))
+
+        for t in threads:
+            t.start()
+
+        log_rx = re.compile(LOG_FORMATS[opts.logformat])
         for log, line in log_fetcher(q, shutdown):  # noqa: B007
             if shutdown.is_set():
                 break
