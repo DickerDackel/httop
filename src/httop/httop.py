@@ -39,7 +39,7 @@ def tail(fname, q, shutdown):
         try:
             with open(fname) as f:
                 inode = os.stat(f.fileno()).st_ino
-                f.seek(0, 2)
+                # f.seek(0, 2)
                 readloop()
         except FileNotFoundError:
             time.sleep(0.01)
@@ -103,9 +103,14 @@ def display(db, window, nolines, delay, dblock, shutdown):  # noqa: PLR0913
 def main():
     log_formats = list(LOG_FORMATS.keys())
 
+    try:
+        lines = os.get_terminal_size()[1] - 5
+    except OSError:
+        lines = 10
+
     cmdline = argparse.ArgumentParser(description='top for httpd access logs')
     cmdline.add_argument('--delay', '-d', type=int, default=1, help='Update delay')
-    cmdline.add_argument('--nolines', '-n', type=int, default=10, help='Maximum number of IPs to show')
+    cmdline.add_argument('--nolines', '-n', type=int, default=lines, help='Maximum number of IPs to show')
     cmdline.add_argument('--window', '-w', type=int, default=60, help='Time window over which to count the IPs')
     cmdline.add_argument('--logformat', '-l', choices=log_formats, default=log_formats[0], help='httpd log format')
     cmdline.add_argument('--logrx', '-r', type=str, help='Regular expression to extract the source IP from the log line')
