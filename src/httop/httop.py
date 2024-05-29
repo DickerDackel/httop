@@ -39,7 +39,7 @@ def tail(fname, q, shutdown):
         try:
             with open(fname) as f:
                 inode = os.stat(f.fileno()).st_ino
-                # f.seek(0, 2)
+                f.seek(0, 2)
                 readloop()
         except FileNotFoundError:
             time.sleep(0.01)
